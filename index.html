@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading Journal Pro</title>
+    <style>
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: #0f172a; color: #f8fafc; margin: 0; padding: 20px; }
+        .container { max-width: 1100px; margin: 0 auto; }
+        
+        /* Header */
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; background: #1e293b; padding: 15px 20px; border-radius: 12px; border: 1px solid #334155; }
+        h1 { margin: 0; font-size: 1.5rem; color: #38bdf8; display: flex; align-items: center; gap: 10px; }
+        .header-actions { display: flex; gap: 10px; align-items: center; }
+        
+        .nav-btn { background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .nav-btn:hover { background: #2563eb; }
+        
+        select.lang-select { background: #0f172a; color: #f8fafc; border: 1px solid #475569; padding: 8px 12px; border-radius: 6px; font-weight: bold; cursor: pointer; outline: none; }
+        
+        /* Summary Cards */
+        .stats-bar { display: flex; gap: 15px; margin-bottom: 20px; }
+        .stat-card { background: #1e293b; padding: 12px 20px; border-radius: 8px; border: 1px solid #334155; flex: 1; }
+        .stat-title { font-size: 0.8rem; color: #94a3b8; text-transform: uppercase; }
+        .stat-value { font-size: 1.3rem; font-weight: bold; margin-top: 4px; }
+
+        /* Year View (12 Months Grid) */
+        .months-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 15px; }
+        .month-card { background: #1e293b; border-radius: 10px; padding: 18px; border: 1px solid #334155; cursor: pointer; transition: 0.2s; }
+        .month-card:hover { border-color: #38bdf8; transform: translateY(-3px); }
+        .month-name { font-size: 1.1rem; font-weight: bold; color: #f1f5f9; margin-bottom: 10px; border-bottom: 1px solid #334155; padding-bottom: 5px; }
+        
+        /* Week View (5 Days: Mon-Fri) */
+        .week-title { font-size: 1.1rem; font-weight: bold; margin: 25px 0 10px 0; color: #94a3b8; border-bottom: 1px solid #334155; padding-bottom: 5px; }
+        .week-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+        .day-card { background: #1e293b; border-radius: 8px; padding: 12px; min-height: 110px; cursor: pointer; transition: 0.2s; border: 2px solid transparent; }
+        .day-card:hover { transform: translateY(-3px); border-color: #38bdf8; }
+        .day-name { font-size: 0.85rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; }
+        
+        /* Status Colors */
+        .profit { background-color: rgba(16, 185, 129, 0.15); border-color: #10b981 !important; }
+        .loss { background-color: rgba(239, 68, 68, 0.15); border-color: #ef4444 !important; }
+        .text-profit { color: #34d399; }
+        .text-loss { color: #f87171; }
+        .text-muted { color: #64748b; }
+
+        /* Trade Details inside day card */
+        .trade-pair { font-weight: bold; font-size: 0.95rem; margin-top: 6px; color: #f8fafc; }
+        .trade-metrics { display: flex; justify-content: space-between; margin-top: 6px; font-size: 0.9rem; font-weight: 600; }
+        .rr-badge { background: #334155; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; color: #cbd5e1; }
+
+        /* Modal Style */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.75); justify-content: center; align-items: center; z-index: 100; }
+        .modal-content { background: #1e293b; padding: 25px; border-radius: 12px; width: 340px; border: 1px solid #475569; }
+        .modal h3 { margin-top: 0; color: #f8fafc; }
+        label { display: block; margin: 12px 0 4px; font-size: 0.85rem; color: #94a3b8; }
+        input, textarea { width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid #475569; background: #0f172a; color: #fff; outline: none; }
+        .form-row { display: flex; gap: 10px; }
+        .btn-group { display: flex; gap: 10px; margin-top: 20px; }
+        button { flex: 1; padding: 10px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
+        .btn-save { background: #38bdf8; color: #0f172a; }
+        .btn-cancel { background: #475569; color: white; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1 id="headerTitle">📈 Trading Journal</h1>
+        <div class="header-actions">
+            <button id="backBtn" class="nav-btn" style="display:none;" onclick="showYearView()">← Back</button>
+            <select id="langSelect" class="lang-select" onchange="changeLanguage(this.value)">
+                <option value="en" selected>🇺🇸 English</option>
+                <option value="tr">🇹🇷 Türkçe</option>
+                <option value="es">🇪🇸 Español</option>
+                <option value="ja">🇯🇵 日本語</option>
+            </select>
+        </div>
+    </header>
+
+    <!-- İstatistik Bandı -->
+    <div class="stats-bar">
+        <div class="stat-card">
+            <div class="stat-title" id="statPnLTitle">Total PnL</div>
+            <div class="stat-value" id="statPnLVal">$0</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-title" id="statRRTitle">Total R:R</div>
+            <div class="stat-value" id="statRRVal">0 R</div>
+        </div>
+    </div>
+
+    <!-- Görünüm Alanı -->
+    <div id="viewContainer"></div>
+</div>
+
+<!-- Modal / Veri Giriş Penceresi -->
+<div class="modal" id="tradeModal">
+    <div class="modal-content">
+        <h3 id="modalTitle">Add Trade</h3>
+        
+        <label id="lblPair">Pair</label>
+        <input type="text" id="pairInput" placeholder="e.g. EUR/USD, BTCUSDT">
+        
+        <div class="form-row">
+            <div>
+                <label id="lblPnL">Profit / Loss ($)</label>
+                <input type="number" id="pnlInput" placeholder="e.g. 150 or -50">
+            </div>
+            <div>
+                <label id="lblRR">R:R</label>
+                <input type="number" step="0.1" id="rrInput" placeholder="e.g. 3 or -1">
+            </div>
+        </div>
+        
+        <label id="lblNotes">Notes</label>
+        <textarea id="noteInput" rows="3" placeholder="Strategy, setup, etc."></textarea>
+        
+        <div class="btn-group">
+            <button class="btn-save" id="btnSave" onclick="saveTrade()">Save</button>
+            <button class="btn-cancel" id="btnCancel" onclick="closeModal()">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // DİL PAKETLERİ (Translations)
+    const i18n = {
+        en: {
+            appTitle: "📈 Trading Journal",
+            backBtn: "← Back to Year",
+            yearlyPnL: "Yearly Total PnL",
+            yearlyRR: "Yearly Total R:R",
+            monthlyPnL: "Monthly PnL",
+            monthlyRR: "Monthly R:R",
+            monthDetails: "Month Details",
+            addTrade: "+ Add Trade",
+            editTrade: "Edit Trade",
+            pair: "Pair",
+            pnl: "Profit / Loss ($)",
+            rr: "R:R",
+            notes: "Notes",
+            save: "Save",
+            cancel: "Cancel",
+            week: "Week",
+            pnlLabel: "PnL",
+            totalRR: "Total R:R",
+            months: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+            days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+        },
+        tr: {
+            appTitle: "📈 Trading Günlüğü",
+            backBtn: "← Yıllık Görünüme Dön",
+            yearlyPnL: "Yıllık Toplam PnL",
+            yearlyRR: "Yıllık Toplam R:R",
+            monthlyPnL: "Aylık PnL",
+            monthlyRR: "Aylık R:R",
+            monthDetails: "Ayı Detayı",
+            addTrade: "+ İşlem Ekle",
+            editTrade: "İşlem Gir",
+            pair: "Parite",
+            pnl: "Kar / Zarar ($)",
+            rr: "R:R",
+            notes: "Notlar",
+            save: "Kaydet",
+            cancel: "İptal",
+            week: "Hafta",
+            pnlLabel: "Kar/Zarar",
+            totalRR: "Toplam R:R",
+            months: ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'],
+            days: ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma']
+        },
+        es: {
+            appTitle: "📈 Diario de Trading",
+            backBtn: "← Volver al Año",
+            yearlyPnL: "PnL Total Anual",
+            yearlyRR: "R:R Total Anual",
+            monthlyPnL: "PnL Mensual",
+            monthlyRR: "R:R Mensual",
+            monthDetails: "Detalles del Mes",
+            addTrade: "+ Añadir Operación",
+            editTrade: "Editar Operación",
+            pair: "Par",
+            pnl: "Ganancia / Pérdida ($)",
+            rr: "R:R",
+            notes: "Notas",
+            save: "Guardar",
+            cancel: "Cancelar",
+            week: "Semana",
+            pnlLabel: "PnL",
+            totalRR: "R:R Total",
+            months: ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'],
+            days: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes']
+        },
+        ja: {
+            appTitle: "📈 トレード日記",
+            backBtn: "← 年表示に戻る",
+            yearlyPnL: "年間通算損益",
+            yearlyRR: "年間通算 R:R",
+            monthlyPnL: "月間損益",
+            monthlyRR: "月間 R:R",
+            monthDetails: "月の詳細",
+            addTrade: "+ トレード追加",
+            editTrade: "トレード編集",
+            pair: "通貨ペア",
+            pnl: "損益 ($)",
+            rr: "リスクリワード (R:R)",
+            notes: "メモ",
+            save: "保存",
+            cancel: "キャンセル",
+            week: "週",
+            pnlLabel: "損益",
+            totalRR: "合計 R:R",
+            months: ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'],
+            days: ['月曜日', '火曜日', '水曜日', '木曜日', '金曜日']
+        }
+    };
+
+    let currentLang = localStorage.getItem('tradingLang') || 'en';
+    let currentView = 'year'; // 'year' or 'month'
+    let selectedMonthIndex = 0;
+    let selectedDayId = null;
+    
+    let journalData = JSON.parse(localStorage.getItem('tradingJournalData_v2')) || {};
+
+    function init() {
+        document.getElementById('langSelect').value = currentLang;
+        updateStaticLabels();
+        showYearView();
+    }
+
+    function changeLanguage(lang) {
+        currentLang = lang;
+        localStorage.setItem('tradingLang', lang);
+        updateStaticLabels();
+        if (currentView === 'year') {
+            showYearView();
+        } else {
+            showMonthView(selectedMonthIndex);
+        }
+    }
+
+    function updateStaticLabels() {
+        const t = i18n[currentLang];
+        document.getElementById('backBtn').innerText = t.backBtn;
+        document.getElementById('lblPair').innerText = t.pair;
+        document.getElementById('lblPnL').innerText = t.pnl;
+        document.getElementById('lblRR').innerText = t.rr;
+        document.getElementById('lblNotes').innerText = t.notes;
+        document.getElementById('btnSave').innerText = t.save;
+        document.getElementById('btnCancel').innerText = t.cancel;
+    }
+
+    // YILLIK GÖRÜNÜM
+    function showYearView() {
+        currentView = 'year';
+        const t = i18n[currentLang];
+        
+        document.getElementById('headerTitle').innerText = `${t.appTitle} (2026)`;
+        document.getElementById('backBtn').style.display = 'none';
+        document.getElementById('statPnLTitle').innerText = t.yearlyPnL;
+        document.getElementById('statRRTitle').innerText = t.yearlyRR;
+
+        let yearPnL = 0;
+        let yearRR = 0;
+
+        const container = document.getElementById('viewContainer');
+        let html = '<div class="months-grid">';
+
+        t.months.forEach((month, mIndex) => {
+            let monthPnL = 0;
+            let monthRR = 0;
+
+            for (let week = 1; week <= 4; week++) {
+                t.days.forEach((day, dIndex) => {
+                    const dayId = `m${mIndex}-w${week}-d${dIndex}`;
+                    if (journalData[dayId]) {
+                        monthPnL += parseFloat(journalData[dayId].pnl || 0);
+                        monthRR += parseFloat(journalData[dayId].rr || 0);
+                    }
+                });
+            }
+
+            yearPnL += monthPnL;
+            yearRR += monthRR;
+
+            const pnlClass = monthPnL > 0 ? 'text-profit' : (monthPnL < 0 ? 'text-loss' : 'text-muted');
+
+            html += `
+                <div class="month-card" onclick="showMonthView(${mIndex})">
+                    <div class="month-name">${month}</div>
+                    <div style="font-size:0.9rem; margin-top:5px;">${t.pnlLabel}: <span class="${pnlClass}" style="font-weight:bold;">${monthPnL > 0 ? '+' : ''}${monthPnL}$</span></div>
+                    <div style="font-size:0.85rem; color:#94a3b8; margin-top:4px;">${t.totalRR}: <b style="color:#f8fafc;">${monthRR > 0 ? '+' : ''}${monthRR.toFixed(1)}R</b></div>
+                </div>
+            `;
+        });
+
+        html += '</div>';
+        container.innerHTML = html;
+
+        updateStats(yearPnL, yearRR);
+    }
+
+    // AYLIK GÖRÜNÜM
+    function showMonthView(mIndex) {
+        currentView = 'month';
+        selectedMonthIndex = mIndex;
+        const t = i18n[currentLang];
+        
+        const monthName = t.months[mIndex];
+        document.getElementById('headerTitle').innerText = `📅 ${monthName} - ${t.monthDetails}`;
+        document.getElementById('backBtn').style.display = 'block';
+        document.getElementById('statPnLTitle').innerText = `${monthName} ${t.monthlyPnL}`;
+        document.getElementById('statRRTitle').innerText = `${monthName} ${t.monthlyRR}`;
+
+        let monthPnL = 0;
+        let monthRR = 0;
+
+        const container = document.getElementById('viewContainer');
+        let html = '';
+
+        for (let week = 1; week <= 4; week++) {
+            html += `<div class="week-title">${t.week} ${week}</div><div class="week-grid">`;
+
+            t.days.forEach((day, dIndex) => {
+                const dayId = `m${mIndex}-w${week}-d${dIndex}`;
+                const data = journalData[dayId];
+
+                let cardClass = 'day-card';
+                let content = `<div class="day-name">${day}</div>`;
+
+                if (data) {
+                    const pnl = parseFloat(data.pnl || 0);
+                    const rr = parseFloat(data.rr || 0);
+                    monthPnL += pnl;
+                    monthRR += rr;
+
+                    if (pnl > 0) cardClass += ' profit';
+                    else if (pnl < 0) cardClass += ' loss';
+
+                    const pnlTextClass = pnl > 0 ? 'text-profit' : (pnl < 0 ? 'text-loss' : '');
+
+                    content += `
+                        <div class="trade-pair">${data.pair}</div>
+                        <div class="trade-metrics">
+                            <span class="${pnlTextClass}">${pnl > 0 ? '+' : ''}${pnl}$</span>
+                            <span class="rr-badge">${rr > 0 ? '+' : ''}${rr}R</span>
+                        </div>
+                    `;
+                } else {
+                    content += `<div class="text-muted" style="font-size:0.75rem; margin-top:20px;">${t.addTrade}</div>`;
+                }
+
+                html += `<div class="${cardClass}" onclick="openModal('${dayId}', '${t.week} ${week} - ${day}')">${content}</div>`;
+            });
+
+            html += `</div>`;
+        }
+
+        container.innerHTML = html;
+        updateStats(monthPnL, monthRR);
+    }
+
+    function updateStats(pnl, rr) {
+        const pnlEl = document.getElementById('statPnLVal');
+        pnlEl.innerText = `${pnl > 0 ? '+' : ''}${pnl}$`;
+        pnlEl.className = `stat-value ${pnl > 0 ? 'text-profit' : (pnl < 0 ? 'text-loss' : '')}`;
+        
+        document.getElementById('statRRVal').innerText = `${rr > 0 ? '+' : ''}${rr.toFixed(1)} R`;
+    }
+
+    function openModal(dayId, title) {
+        selectedDayId = dayId;
+        const t = i18n[currentLang];
+        document.getElementById('modalTitle').innerText = title;
+        const data = journalData[dayId] || { pair: '', pnl: '', rr: '', note: '' };
+        document.getElementById('pairInput').value = data.pair || '';
+        document.getElementById('pnlInput').value = data.pnl !== undefined ? data.pnl : '';
+        document.getElementById('rrInput').value = data.rr !== undefined ? data.rr : '';
+        document.getElementById('noteInput').value = data.note || '';
+        document.getElementById('tradeModal').style.display = 'flex';
+    }
+
+    function closeModal() {
+        document.getElementById('tradeModal').style.display = 'none';
+    }
+
+    function saveTrade() {
+        const pair = document.getElementById('pairInput').value;
+        const pnl = document.getElementById('pnlInput').value;
+        const rr = document.getElementById('rrInput').value;
+        const note = document.getElementById('noteInput').value;
+
+        if (pair || pnl !== '') {
+            journalData[selectedDayId] = {
+                pair: pair.toUpperCase(),
+                pnl: pnl !== '' ? parseFloat(pnl) : 0,
+                rr: rr !== '' ? parseFloat(rr) : 0,
+                note: note
+            };
+        } else {
+            delete journalData[selectedDayId];
+        }
+
+        localStorage.setItem('tradingJournalData_v2', JSON.stringify(journalData));
+        closeModal();
+        
+        if (currentView === 'month') {
+            showMonthView(selectedMonthIndex);
+        } else {
+            showYearView();
+        }
+    }
+
+    init();
+</script>
+
+</body>
+</html>
